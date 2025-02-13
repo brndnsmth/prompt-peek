@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+virtualenv/
+*.egg-info/
+
+# Distribution / packaging
+.DS_Store
+*.log
+build/
+dist/
+develop-eggs/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.whl
+*.zip
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+
+# Flask related
+instance/
+.flaskenv
+
+# Other
+tmp/
+temp/
+*.swp
+*~
