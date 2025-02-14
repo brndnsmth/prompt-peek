@@ -5,27 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prompt Peek</title>
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+    <style>
+        /* Shimmer Gradient Background */
+        body {
+            background: linear-gradient(45deg, #f0f0f0, #d6d6d6, #f0f0f0);
+            background-size: 400% 400%;
+            animation: shimmerBG 6s infinite alternate;
+        }
+        @keyframes shimmerBG {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
 
-    <div class="bg-white shadow-lg rounded-lg w-3/4 h-[80vh] flex overflow-hidden">
+        /* Dark Mode Background */
+        .dark body {
+            background: linear-gradient(45deg, #1e1e1e, #333, #1e1e1e);
+        }
+
+        /* Image Fade-in Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen transition-colors duration-300">
+
+    <div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg w-3/4 h-[80vh] flex overflow-hidden">
         
-        <!-- Left Side: Image Upload & Preview -->
-        <div class="w-1/2 p-6 border-r flex flex-col items-center justify-center">
-            <label for="imageUpload" class="cursor-pointer border-2 border-dashed border-gray-400 p-6 rounded-lg text-gray-500 text-center w-full h-full flex flex-col items-center justify-center">
+        <!-- Left Side: Image Upload & URL Input -->
+        <div class="w-1/2 p-6 border-r border-gray-300 dark:border-gray-600 flex flex-col items-center">
+            <label for="imageUpload" class="cursor-pointer border-2 border-dashed border-gray-400 dark:border-gray-500 p-6 rounded-lg text-gray-500 dark:text-gray-300 text-center w-full flex flex-col items-center justify-center">
                 <span class="text-lg">Drag & drop or click to upload an image</span>
                 <input type="file" id="imageUpload" class="hidden" accept="image/png, image/jpeg">
             </label>
-            <div id="imagePreview" class="mt-4 hidden w-full flex justify-center">
-                <img id="previewImg" class="max-h-60 rounded-lg shadow-md" alt="Uploaded Image">
+            
+            <div class="mt-4 w-full">
+                <input type="text" id="imageUrl" placeholder="Or enter an image URL..." class="border p-2 w-full rounded bg-gray-100 dark:bg-gray-700 dark:text-white">
+                <button id="fetchImageBtn" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition">
+                    Fetch Image
+                </button>
+            </div>
+
+            <!-- Preview Checkbox -->
+            <div class="mt-4 flex items-center space-x-2">
+                <input type="checkbox" id="previewToggle" checked class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="previewToggle" class="text-gray-700 dark:text-gray-300">Preview Image</label>
+            </div>
+
+            <div id="imagePreview" class="mt-4 w-full flex justify-center hidden">
+                <img id="previewImg" class="max-h-60 rounded-lg shadow-md fade-in" alt="Uploaded Image">
             </div>
         </div>
 
-        <!-- Right Side: Prompt/Metadata Display -->
+        <!-- Right Side: Metadata Display -->
         <div class="w-1/2 p-6 flex flex-col">
-            <h2 class="text-xl font-semibold mb-2">Metadata & Prompt</h2>
-            <div id="metadataContainer" class="bg-gray-50 p-4 border rounded-lg overflow-auto h-full">
-                <pre id="metadataOutput" class="text-sm text-gray-700 whitespace-pre-wrap"></pre>
+            <h2 class="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Metadata & Prompt</h2>
+            <div id="metadataContainer" class="bg-gray-50 dark:bg-gray-700 dark:text-gray-200 p-4 border rounded-lg overflow-auto h-full">
+                <pre id="metadataOutput" class="text-sm whitespace-pre-wrap"></pre>
             </div>
         </div>
 
@@ -33,70 +78,74 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const dropArea = document.querySelector("label[for='imageUpload']");
             const fileInput = document.getElementById("imageUpload");
             const preview = document.getElementById("previewImg");
             const previewContainer = document.getElementById("imagePreview");
             const metadataOutput = document.getElementById("metadataOutput");
-        
-            // Prevent default drag behaviors
-            ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
-                dropArea.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, false);
+            const fetchBtn = document.getElementById("fetchImageBtn");
+            const imageUrlInput = document.getElementById("imageUrl");
+            const previewToggle = document.getElementById("previewToggle");
+
+            // Set theme based on OS preference
+            if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                document.documentElement.classList.add("dark");
+            }
+
+            // Handle file upload
+            fileInput.addEventListener("change", async function (e) {
+                handleUpload(e.target.files[0]);
             });
-        
-            // Highlight drop area on drag
-            ["dragenter", "dragover"].forEach(eventName => {
-                dropArea.addEventListener(eventName, () => {
-                    dropArea.classList.add("border-blue-500");
-                }, false);
+
+            // Handle image URL fetch
+            fetchBtn.addEventListener("click", async function () {
+                const imageUrl = imageUrlInput.value.trim();
+                if (!imageUrl) return;
+                handleUpload(null, imageUrl);
             });
-        
-            ["dragleave", "drop"].forEach(eventName => {
-                dropArea.addEventListener(eventName, () => {
-                    dropArea.classList.remove("border-blue-500");
-                }, false);
-            });
-        
-            // Handle file drop
-            dropArea.addEventListener("drop", (e) => {
-                const file = e.dataTransfer.files[0];
+
+            async function handleUpload(file, imageUrl = null) {
+                let formData = new FormData();
                 if (file) {
-                    handleFile(file);
+                    formData.append("image", file);
+                } else if (imageUrl) {
+                    formData.append("image_url", imageUrl);
                 }
-            });
-        
-            // Handle file selection
-            fileInput.addEventListener("change", (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    handleFile(file);
-                }
-            });
-        
-            async function handleFile(file) {
-                // Show image preview
-                const reader = new FileReader();
-                reader.onload = () => {
-                    preview.src = reader.result;
-                    previewContainer.classList.remove("hidden");
-                };
-                reader.readAsDataURL(file);
-        
-                // Upload the image to backend
-                const formData = new FormData();
-                formData.append("image", file);
-        
+
                 const response = await fetch("/upload", {
                     method: "POST",
                     body: formData
                 });
-        
+
                 const result = await response.json();
                 metadataOutput.textContent = JSON.stringify(result.metadata, null, 2);
+
+                if (previewToggle.checked) {
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            preview.src = reader.result;
+                            previewContainer.classList.remove("hidden");
+                            preview.classList.add("fade-in"); // Add animation
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        preview.src = imageUrl;
+                        previewContainer.classList.remove("hidden");
+                        preview.classList.add("fade-in"); // Add animation
+                    }
+                } else {
+                    previewContainer.classList.add("hidden");
+                }
             }
+
+            // Toggle preview visibility
+            previewToggle.addEventListener("change", function () {
+                if (previewToggle.checked) {
+                    previewContainer.classList.remove("hidden");
+                } else {
+                    previewContainer.classList.add("hidden");
+                }
+            });
         });
     </script>
 
