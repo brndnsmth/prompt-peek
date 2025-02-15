@@ -1,4 +1,5 @@
 import os
+import argparse
 import requests
 from flask import Flask, request, render_template, jsonify
 from PIL import Image
@@ -81,4 +82,12 @@ def upload():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5055)  # Runs on an uncommon port
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.getenv("PORT", 5000)),
+        help="Port number to run the app",
+    )
+    args = parser.parse_args()
+    app.run(debug=True, host="0.0.0.0", port=args.port)
