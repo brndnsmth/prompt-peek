@@ -35,12 +35,10 @@ def extract_metadata(image_path):
 
     try:
         with Image.open(image_path) as image:
-            if "png" in image.format.lower():
+            if image.format.lower() == "png":
                 metadata = image.info
-            elif "jpeg" in image.format.lower():
-                exif_data = (
-                    piexif.load(image.info["exif"]) if "exif" in image.info else {}
-                )
+            elif image.format.lower() == "jpeg":
+                exif_data = piexif.load(image.info.get("exif", b""))
                 metadata = {
                     k: v.decode() if isinstance(v, bytes) else v
                     for k, v in exif_data.get("Exif", {}).items()
@@ -68,15 +66,13 @@ def upload():
         image_path = os.path.join(UPLOAD_FOLDER, filename)
         file.save(image_path)
     elif image_url:
-        image_path = download_image(image_url)  # Synchronous call
+        image_path = download_image(image_url)
 
     if not image_path or not os.path.exists(image_path):
         return jsonify({"error": "Invalid image or failed to process."}), 400
 
     metadata = extract_metadata(image_path)
-
-    # Clean up - delete the processed image
-    os.remove(image_path)
+    os.remove(image_path)  # Clean up
 
     return jsonify({"metadata": metadata})
 
